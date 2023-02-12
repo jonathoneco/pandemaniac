@@ -98,7 +98,6 @@ def run_simulation(adj_list, node_mappings):
     # You could check these two dicts if you want to see the intermediate steps
     # of the epidemic.
     generation += 1
-  print(generation - 1)
   return get_result(node_mappings.keys(), node_color)
 
 

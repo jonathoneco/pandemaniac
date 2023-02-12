@@ -17,10 +17,8 @@ class Node:
 
     # New values (updated at each iteration).
     self.new_color = self.color
-    self.new_neighbor_count = self.neighbor_count
+    self.new_neighbor_count = self.neighbor_count.copy()
     self.new_colored_neighbors = self.colored_neighbors
-
-    self.check_node("init")
 
   def init_color(self, color):
     self.new_color = color
@@ -30,10 +28,7 @@ class Node:
       neighbor.new_neighbor_count[0] -= 1
       neighbor.new_colored_neighbors += 1
 
-    self.check_node("init_color")
-
   def remove_color(self):
-    print("hello")
     for neighbor in self.neighbors:
       neighbor.new_neighbor_count[self.color] -= 1
       neighbor.new_neighbor_count[0] += 1
@@ -42,7 +37,6 @@ class Node:
     self.new_color = 0
 
   def update_color(self):
-    self.check_node("update_color start")
     # Check which color type has the most neighbors.
     votes = self.neighbor_count.copy()
     if self.color > 0:
@@ -61,15 +55,13 @@ class Node:
         if self.color == 0:
           neighbor.new_colored_neighbors += 1
 
-      self.check_node("update_color change")
       return True
 
-    self.check_node("update_color no change")
     return False
 
   def complete_iteration(self):
     self.color = self.new_color
-    self.neighbor_count = self.new_neighbor_count
+    self.neighbor_count = self.new_neighbor_count.copy()
     self.colored_neighbors = self.new_colored_neighbors
 
   def reset(self, num_colors):
@@ -81,7 +73,7 @@ class Node:
 
     # New values (updated at each iteration).
     self.new_color = self.color
-    self.new_neighbor_count = self.neighbor_count
+    self.new_neighbor_count = self.neighbor_count.copy()
     self.new_colored_neighbors = self.colored_neighbors
 
   def check_node(self, where=""):
@@ -102,14 +94,13 @@ class Node:
 ############################
 
 def sim(nodes, seeds):
-  print(f'Seeds: {seeds}')
+#   print(f'Seeds: {seeds}')
   # List of (index of color, labels of nodes to seed for this color)
   indexed_seeds = [(idx, seeds[key]) for (idx, key) in enumerate(seeds.keys(), 1)]
   num_colors = len(indexed_seeds)
 
   reset_nodes(nodes, num_colors)
   seed_nodes(nodes, indexed_seeds)
-  seed(0)
   max_rounds = randint(100, 200)
   iter = 0
   converged = False
@@ -132,8 +123,6 @@ def sim(nodes, seeds):
   total_counts = np.zeros(num_colors + 1)
   for node in nodes.values():
     total_counts[node.color] += 1
-
-  print(total_counts)
 
   return {color : total_counts[idx] for (idx, color) in enumerate(seeds.keys(), 1)}
 
@@ -159,14 +148,14 @@ def seed_nodes(nodes, indexed_seeds):
   conflicts = set()
 
   # Seed each node and keep track of conflicts.
-  for (idx, seed_labels) in indexed_seeds:
+  for (color, seed_labels) in indexed_seeds:
     for node_label in seed_labels:
       node = nodes[node_label]
       if node.color > 0:
         conflicts.add(node)
       else:
-        # print(f'seeded node {node_label} with color {idx}')
-        node.init_color(idx)
+        # print(f'seeded node {node_label} with color {color}')
+        node.init_color(color)
 
   # Resolve conflicts by setting node to have no color.
   for node in conflicts:

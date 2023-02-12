@@ -92,9 +92,9 @@ def score_comp_seeds(seed1, seed2, adj_list):
 
 def score_seeds(seed1, seed2, adj_list):
     seeds = {"1": seed1, "2": seed2}
-    nodes = optimized_sim.create_nodes(adj_list)
-    result = optimized_sim.sim(nodes, seeds)
-    # result = sim.run(adj_list, seeds)
+    # nodes = optimized_sim.create_nodes(adj_list)
+    # result = optimized_sim.sim(nodes, seeds)
+    result = sim.run(adj_list, seeds)
     return result
 
 def compete(num_seeds, graph, n_partitions):
