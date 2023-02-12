@@ -46,7 +46,7 @@ Possible Errors:
 
 from collections import Counter, OrderedDict
 from copy import deepcopy
-from random import randint
+from random import randint, seed
 
 
 def run(adj_list, node_mappings):
@@ -84,6 +84,8 @@ def run_simulation(adj_list, node_mappings):
   # converge.
   prev = None
   nodes = adj_list.keys()
+
+  seed(0)
   max_rounds = randint(100, 200)
   while not is_stable(generation, max_rounds, prev, node_color):
     prev = deepcopy(node_color)
@@ -96,7 +98,7 @@ def run_simulation(adj_list, node_mappings):
     # You could check these two dicts if you want to see the intermediate steps
     # of the epidemic.
     generation += 1
-
+  print(generation - 1)
   return get_result(node_mappings.keys(), node_color)
 
 

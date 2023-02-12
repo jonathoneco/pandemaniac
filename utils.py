@@ -4,11 +4,17 @@ import numpy as np
 import itertools
 from tqdm import tqdm
 import json
+import sklearn.cluster as cluster
+from collections import Counter
+import sim
+
 
 def get_graph_from_file(filename):
     with open(filename, "r") as graphjson:
         adj_list = json.load(graphjson)
     G = nx.Graph()
+    for u in adj_list.keys():
+        G.add_node(u)
     for u, neighbors in adj_list.items():
         G.add_edges_from([(u, neighbor) for neighbor in neighbors])
     return G
@@ -17,7 +23,28 @@ def get_graph_from_file(filename):
 def get_centralities(graph):
     return [nx.degree_centrality(graph), nx.betweenness_centrality(graph), nx.closeness_centrality(graph)]
 
-def choose_seed_nodes_given_weights(weights, num_seeds, graph, c_measures = None):
+def get_clustered_nodes(G, n_clusters=2):
+    adj_matrix = nx.adjacency_matrix(G)
+    X = np.array(adj_matrix.todense())
+
+    kmeans = cluster.KMeans(n_clusters=n_clusters)
+    kmeans.fit(X)
+
+    cluster_labels = kmeans.labels_
+
+    # Get a dictionary that maps cluster labels to node indices
+    cluster_dict = dict(zip(G.nodes(), cluster_labels))
+
+    # Count the number of nodes in each cluster
+    cluster_counts = Counter(cluster_labels)
+
+    # Get the label of the largest cluster
+    largest_cluster_label = max(cluster_counts, key=cluster_counts.get)
+
+    # Get the nodes that belong to the largest cluster
+    return [node for node, label in cluster_dict.items() if label == largest_cluster_label]
+
+def choose_seed_nodes_given_weights(weights, num_seeds, graph, largest_cluster_nodes = None, c_measures = None):
     """
     Function: choose_seed_nodes_given_weights
     -----------------------------------------
@@ -25,9 +52,12 @@ def choose_seed_nodes_given_weights(weights, num_seeds, graph, c_measures = None
     """
     if not c_measures:
         c_measures = get_centralities(graph)
+    if not largest_cluster_nodes:
+        largest_cluster_nodes = graph.nodes
+
     centrality = {}
     
-    for node in graph.nodes:
+    for node in largest_cluster_nodes:
         centrality[node] = c_measures[0][node] * weights[0] + c_measures[1][node] * weights[1] + c_measures[2][node] * weights[2]
     
     return sorted(centrality, key=centrality.get, reverse=True)[:num_seeds]
@@ -58,12 +88,13 @@ def score_comp_seeds(seed1, seed2, adj_list):
     seeds = {"1": seed1, "2": seed2}
     nodes = optimized_sim.create_nodes(adj_list)
     result = optimized_sim.sim(nodes, seeds)
-    return (result['1'] > result['2']) - (result['1'] < result['2'])
+    return (result['1'] > result['2']) ^ (result['1'] < result['2'])
 
 def score_seeds(seed1, seed2, adj_list):
     seeds = {"1": seed1, "2": seed2}
     nodes = optimized_sim.create_nodes(adj_list)
     result = optimized_sim.sim(nodes, seeds)
+    # result = sim.run(adj_list, seeds)
     return result
 
 def compete(num_seeds, graph, n_partitions):
@@ -79,7 +110,7 @@ def compete(num_seeds, graph, n_partitions):
     for alpha in tqdm(np.linspace(0, 1, n_partitions)):
         for beta in np.linspace(0, 1 - alpha, n_partitions):
             weights = [alpha, beta, 1 - alpha - beta]
-            nodes = frozenset(choose_seed_nodes_given_weights(weights, num_seeds, graph, c_measures))
+            nodes = frozenset(choose_seed_nodes_given_weights(weights, num_seeds, graph, c_measures=c_measures))
 
             if nodes not in nodes_combos:
                 nodes_combos.append(nodes)

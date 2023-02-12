@@ -4,32 +4,26 @@ import numpy as np
 import itertools
 from utils import *
 from tqdm import tqdm
+import sklearn.cluster as cluster
+from collections import Counter
 
-def compete(num_seeds, graph, n_partitions):
-    nodes_combos = []
-    
-    # Generate potential strategies (seed nodes).
-    print('Generating potential seed combinations...')
-    for alpha in np.linspace(0, 1, n_partitions):
-        for beta in np.linspace(0, 1 - alpha, n_partitions):
-            weights = [alpha, beta, 1 - alpha - beta]
-            nodes = choose_seed_nodes_given_weights(weights, num_seeds, graph)
+def get_clustered_nodes(G, n_clusters=2):
+    adj_matrix = nx.adjacency_matrix(G)
+    X = np.array(adj_matrix.todense())
 
-            if nodes not in nodes_combos:
-                nodes_combos.append(nodes)
+    kmeans = cluster.KMeans(n_clusters=n_clusters)
+    kmeans.fit(X)
 
-    # Maps a set of seed nodes to sets of seed nodes that it beats.
-    beats = {nodes : [] for nodes in nodes_combos}
+    cluster_labels = kmeans.labels_
 
-    # Test each pair against the others.
-    print('Pitting seeds to the death...')
-    for strat1, strat2 in tqdm(itertools.combinations(nodes_combos, 2)):
-        if strat2 not in beats[strat1] and strat1 not in beats[strat2]:
-            # Pit the two strategies against each other. Probabilistically
-            # say the winner also beats strategies that the loser beats.
-            res = score_comp_seeds(strat1, strat2)
+    # Get a dictionary that maps cluster labels to node indices
+    cluster_dict = dict(zip(G.nodes(), cluster_labels))
 
-            if   res ==  1: beats[strat1].append(strat2)
-            elif res == -1: beats[strat2].append(strat1)
-            
-    return sorted(beats.keys(), key=len(beats.values()))[0]
+    # Count the number of nodes in each cluster
+    cluster_counts = Counter(cluster_labels)
+
+    # Get the label of the largest cluster
+    largest_cluster_label = max(cluster_counts, key=cluster_counts.get)
+
+    # Get the nodes that belong to the largest cluster
+    return [node for node, label in cluster_dict.items() if label == largest_cluster_label]
