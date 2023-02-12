@@ -1,29 +1,43 @@
 import networkx as nx
-import sim
+import optimized_sim
 import numpy as np
 import itertools
 from tqdm import tqdm
+import json
 
-def choose_seed_nodes_given_weights(weights, num_seeds, graph):
+def get_graph_from_file(filename):
+    with open(filename, "r") as graphjson:
+        adj_list = json.load(graphjson)
+    G = nx.Graph()
+    for u, neighbors in adj_list.items():
+        G.add_edges_from([(u, neighbor) for neighbor in neighbors])
+    return G
+
+
+def get_centralities(graph):
+    return [nx.degree_centrality(graph), nx.betweenness_centrality(graph), nx.closeness_centrality(graph)]
+
+def choose_seed_nodes_given_weights(weights, num_seeds, graph, c_measures = None):
     """
     Function: choose_seed_nodes_given_weights
     -----------------------------------------
     Chooses seed nodes based on the weights given.
     """
-    degree_cen = nx.degree_centrality(graph)
-    between_cen = nx.betweenness_centrality(graph)
-    close_cen = nx.closeness_centrality(graph)
+    if not c_measures:
+        c_measures = get_centralities(graph)
     centrality = {}
     
     for node in graph.nodes:
-        centrality[node] = degree_cen[node] * weights[0] + between_cen[node] * weights[1] + close_cen[node] * weights[2]
+        centrality[node] = c_measures[0][node] * weights[0] + c_measures[1][node] * weights[1] + c_measures[2][node] * weights[2]
     
     return sorted(centrality, key=centrality.get, reverse=True)[:num_seeds]
+
 
 def score_strat(weights, num_seeds, graph, comp_nodes, adj_list):
     seeds = choose_seed_nodes_given_weights(weights, num_seeds, graph)
     comp_nodes["Modelo Time"] = seeds
-    return sim.run(adj_list, comp_nodes)["Modelo Time"]
+    nodes = optimized_sim.create_nodes(adj_list)
+    return optimized_sim.sim(nodes, comp_nodes)["Modelo Time"]
 
 def gen_weights(num_seeds, graph, comp_nodes={}):
     """
@@ -41,21 +55,31 @@ def gen_weights(num_seeds, graph, comp_nodes={}):
           ret[(i, j, k)] = score_strat([i, j, k], num_seeds, graph, comp_nodes, adj_list)
 
 def score_comp_seeds(seed1, seed2, adj_list):
-    nodes = {"1": seed1, "2": seed2}
-    result = sim.run(adj_list, nodes)
+    seeds = {"1": seed1, "2": seed2}
+    nodes = optimized_sim.create_nodes(adj_list)
+    result = optimized_sim.sim(nodes, seeds)
     return (result['1'] > result['2']) - (result['1'] < result['2'])
 
+def score_seeds(seed1, seed2, adj_list):
+    seeds = {"1": seed1, "2": seed2}
+    nodes = optimized_sim.create_nodes(adj_list)
+    result = optimized_sim.sim(nodes, seeds)
+    return result
 
 def compete(num_seeds, graph, n_partitions):
     nodes_combos = []
     # networkx graph to adjacency list
     adj_list = nx.to_dict_of_lists(graph)
-    
+
+    # Centralities
+    c_measures = get_centralities(graph)
+
     # Generate potential strategies (seed nodes).
-    for alpha in np.linspace(0, 1, n_partitions):
+    print('Generating potential seed combinations...')
+    for alpha in tqdm(np.linspace(0, 1, n_partitions)):
         for beta in np.linspace(0, 1 - alpha, n_partitions):
             weights = [alpha, beta, 1 - alpha - beta]
-            nodes = frozenset(choose_seed_nodes_given_weights(weights, num_seeds, graph))
+            nodes = frozenset(choose_seed_nodes_given_weights(weights, num_seeds, graph, c_measures))
 
             if nodes not in nodes_combos:
                 nodes_combos.append(nodes)
@@ -64,8 +88,9 @@ def compete(num_seeds, graph, n_partitions):
     beats = {nodes : [] for nodes in nodes_combos}
 
     # Test each pair against the others.
+    print('Pitting seeds to the death...')
     combinations = itertools.combinations(nodes_combos, 2)
-    for strat1, strat2 in tqdm(combinations, total=len(combinations)):
+    for strat1, strat2 in tqdm(combinations):
         if strat2 not in beats[strat1] and strat1 not in beats[strat2]:
             # Pit the two strategies against each other. Probabilistically
             # say the winner also beats strategies that the loser beats.
@@ -73,6 +98,6 @@ def compete(num_seeds, graph, n_partitions):
 
             if   res ==  1: beats[strat1].append(strat2)
             elif res == -1: beats[strat2].append(strat1)
-            elif res ==  0: print(f'Tie between {strat1} and {strat2}')
-            
-    return sorted(beats.keys(), key=len(beats.values()))
+            elif res ==  0: continue#print(f'Tie between {strat1} and {strat2}')
+
+    return sorted(beats.keys(), key=lambda x : len(beats[x]), reverse=True)
