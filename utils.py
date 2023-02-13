@@ -88,7 +88,7 @@ def score_comp_seeds(seed1, seed2, adj_list):
     seeds = {"1": seed1, "2": seed2}
     nodes = optimized_sim.create_nodes(adj_list)
     result = optimized_sim.sim(nodes, seeds)
-    return (result['1'] > result['2']) ^ (result['1'] < result['2'])
+    return bool((result['1'] > result['2'])) - bool((result['1'] < result['2']))
 
 def score_seeds(seed1, seed2, adj_list):
     seeds = {"1": seed1, "2": seed2}
@@ -101,7 +101,7 @@ def score_seeds_opt(seed1, seed2, nodes):
     seeds = {'1': seed1, '2': seed2}
     result = optimized_sim.sim(nodes, seeds)
     return (result['1'], result['2'])
-
+    
 def compete(num_seeds, graph, n_partitions):
     nodes_combos = []
     # networkx graph to adjacency list
@@ -138,12 +138,13 @@ def compete(num_seeds, graph, n_partitions):
 
     return sorted(beats.keys(), key=lambda x : len(beats[x]), reverse=True)
 
+
 def output_seeds(seeds, filename, n=50):
     f = open(f'{filename}_seeds.txt', 'w')
 
     for i in range(n):
-        for node in seeds[i % len(seeds)]:
-            f.write(f'{node}\n')
+        for seed in seeds[i % len(seeds)]:
+            for node in seed:
+                f.write(f'{node}\n')
 
     f.close()
-

@@ -166,7 +166,5 @@ def iterate(nodes):
   # Set current values to new values when updates required.
   for node in to_update:
     node.complete_iteration()
-  # for node in nodes.values():
-  #   node.complete_iteration()
 
   return converged
