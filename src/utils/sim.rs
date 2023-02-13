@@ -1,11 +1,10 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 use rand::prelude::*;
 
 pub struct Node {
-	idx: usize,
+	pub idx: usize,
 
-	label: String,
+	pub label: String,
 	neighbors: Vec<usize>,
 	color: Option<usize>,
 	neighbor_count: Vec<f64>,
@@ -30,62 +29,16 @@ impl Node {
 		}
 	}
 	
-	pub fn new_colors(&mut self, sim: &Vec<Node>, color: usize) {
+	pub fn new_color(&mut self, color: usize) {
 		self.color = Some(color);
 		
-		for neighbor_idx in self.neighbors {
-			let mut neighbor = &mut sim[neighbor_idx];
-			neighbor.new_neighbor_count[color] += 1.0;
-			neighbor.new_colored_neighbors += 1;
-		}
 	}
 	
-	pub fn remove_color(&mut self, sim: &Vec<Node>) {
-
-		for neighbor_idx in self.neighbors {
-			let mut neighbor = &mut sim[neighbor_idx];
-			neighbor.new_neighbor_count[self.color.unwrap()] -= 1.0;
-			neighbor.new_colored_neighbors -= 1;
-		}
+	pub fn remove_color(&mut self) {
 
 		self.color = None;
 	}
 	
-	fn update_color(&mut self, sim: &Vec<Node>, to_update: &mut Vec<usize>) -> bool {
-		let mut new_color = None;
-		let mut max_count= 0.0;
-		for (color, count) in self.neighbor_count.iter().enumerate() {
-			if *count > max_count {
-				new_color = Some(color);
-				max_count = *count;
-			}
-		}
-		
-		if let Some(new_color) = new_color {
-			if let Some(curr_color) = self.color {
-				if self.neighbor_count[curr_color] + 1.5 > max_count {
-					return false;
-				}
-			}
-			
-			if max_count > self.colored_neighbors as f64 / 2.0 {
-					to_update.push(self.idx);
-					for neighbor_idx in self.neighbors {
-						let mut neighbor = &mut sim[neighbor_idx];
-						to_update.push(neighbor.idx);
-						neighbor.new_neighbor_count[new_color] += 1.0;
-						if let Some(curr_color) = self.color {
-							neighbor.new_neighbor_count[curr_color] -= 1.0;
-						} else {
-							neighbor.new_colored_neighbors += 1;
-						}
-					}
-					self.color = Some(new_color);
-					return true;
-			}
-		}
-		false
-	}	
 	
 	pub fn update(&mut self) {
 		self.neighbor_count = self.new_neighbor_count.clone();
@@ -102,94 +55,171 @@ impl Node {
 	}
 }
 
-pub fn sim(sim: &Vec<Node>, seeds: &HashMap<String, Vec<String>>) -> HashMap<String, f64>  {
-	let indexed_seeds:Vec<(usize, &Vec<String>)> = seeds.keys().enumerate().map(|(idx, color)| (idx, &seeds[color])).collect();
-	let num_colors = indexed_seeds.len();
-	
-	reset_nodes(nodes, num_colors);
-	seed_nodes(nodes, &indexed_seeds);
-	let max_rounds:isize = rand::thread_rng().gen_range(100..=200);
-	let mut iter = 0;
-	let mut converged = false;
-
-	while iter < max_rounds && !converged {
-		converged = iterate(nodes);
-		iter += 1;
-	}
-	println!("Converged in {} iterations.", iter);
-
-	let mut total_counts = vec![0.0; num_colors];
-	for noderef in nodes.values() {
-		let node = noderef.borrow();
-		if let Some(color) = node.color {
-			total_counts[color] += 1.0;
-		}
-	}
-
-	return seeds.keys().enumerate().map(|(idx, color)| (color.clone(), total_counts[idx])).collect();
+pub struct Sim {
+	pub nodes: Vec<Node>,
 }
 
-pub fn create_nodes(adj_list: &HashMap<String, Vec<String>>) -> HashMap<String, Rc<RefCell<Node>>> {
-	// Collect adj_list into a map of node labels to rc of nodes
-	let nodes: HashMap<String, Rc<RefCell<Node>>> = adj_list.keys().into_iter().map(|label| (label.clone(), Node::new(label.clone()))).collect();
-	for label in adj_list.keys() {
-		let mut node = nodes[label].borrow_mut();
-		let neighbors = &adj_list[label];
-		for neighbor in neighbors {
-			node.neighbors.push(Rc::downgrade(&nodes[neighbor]));
+impl Sim {
+	pub fn new(adj_list: &HashMap<String, Vec<String>>) -> Sim {
+		let nodes = Self::create_nodes(adj_list);
+		Sim {
+			nodes,
 		}
 	}
 	
-	return nodes;
-}
+	pub fn run(&mut self, seeds: &HashMap<String, Vec<usize>>) -> HashMap<String, f64>  {
+		let indexed_seeds:Vec<(usize, &Vec<usize>)> = seeds.keys().enumerate().map(|(idx, color)| (idx, &seeds[color])).collect();
+		let num_colors = indexed_seeds.len();
+		
+		self.reset_nodes(num_colors);
+		self.seed_nodes(&indexed_seeds);
+		let max_rounds:isize = rand::thread_rng().gen_range(100..=200);
+		let mut iter = 0;
+		let mut converged = false;
 
-pub fn reset_nodes(nodes: &HashMap<String, Rc<RefCell<Node>>>, num_colors: usize) {
-	for noderef in nodes.values() {
-		let mut node = noderef.borrow_mut();
-		node.reset(num_colors);
-	}
-}
+		while iter < max_rounds && !converged {
+			converged = self.iterate();
+			iter += 1;
+		}
+		println!("Converged in {} iterations.", iter);
 
-// TODO: Finish swapping from references to global node array for easier parallelization and headache reading this fucking code
-// TODO: After I've woken up, it's 4:32 am lol
-pub fn seed_nodes(sim: &mut Vec<Node>, indexed_seeds: &Vec<(usize, &Vec<String>)>) {
-	let mut conflicts: Vec<usize> = vec![];
-	for (color, seeds) in indexed_seeds {
-		for seed in *seeds {
-			let mut node = sim[seed].borrow_mut();
-			if let Some(_color) = node.color {
-				conflicts.push(Rc::clone(&nodes[seed]));
-			} else {
-				node.new_color(*color);
+		let mut total_counts = vec![0.0; num_colors];
+		for node in &self.nodes {
+			if let Some(color) = node.color {
+				total_counts[color] += 1.0;
 			}
 		}
-	}
-	
-	for noderef in conflicts {
-		let mut node = noderef.borrow_mut();
-		node.remove_color();
+
+		return seeds.keys().enumerate().map(|(idx, color)| (color.clone(), total_counts[idx])).collect();
 	}
 
-	for noderef in nodes.values() {
-		let mut node = noderef.borrow_mut();
-		node.update();
+	pub fn create_nodes(adj_list: &HashMap<String, Vec<String>>) -> Vec<Node> {
+		// Collect adj_list into a map of node labels to rc of nodes
+		let label_to_idx: HashMap<String, usize> = adj_list.keys().into_iter().enumerate().map(|(idx, label)| (label.clone(), idx)).collect();
+		let mut nodes: Vec<Node> = adj_list.keys().into_iter().enumerate().map(|(idx, label)| Node::new(label.clone(), idx)).collect();
+		for node in &mut nodes {
+			let neighbors = &adj_list[&node.label];
+			for neighbor in neighbors {
+				node.neighbors.push(label_to_idx[neighbor]);
+			}
+		}
+		
+		return nodes;
 	}
-}
 
-pub fn iterate(sim: &mut Vec<Node>) -> bool {
-	let mut converged = true;
-	let mut to_update: Vec<usize> = Vec::new();
-
-	for node in sim {
-		if node.update_color(sim, &mut to_update) {
-			converged = false;
+	pub fn reset_nodes(&mut self, num_colors: usize) {
+		for node in &mut self.nodes {
+			node.reset(num_colors);
 		}
 	}
 
-	for idx in to_update {
-		let mut node = &mut sim[idx];
-		node.update();
+	// TODO: Finish swapping from references to global node array for easier parallelization and headache reading this fucking code
+	// TODO: After I've woken up, it's 4:32 am lol
+	pub fn seed_nodes(&mut self, indexed_seeds: &Vec<(usize, &Vec<usize>)>) {
+		let mut conflicts: Vec<usize> = vec![];
+		for (color, seeds) in indexed_seeds {
+			for seed in *seeds {
+				let node = &self.nodes[*seed];
+				if let Some(_color) = node.color {
+					conflicts.push(node.idx);
+				} else {
+					let node_idx = node.idx;
+					self.new_node_color(node_idx, *color);
+				}
+			}
+		}
+		
+		for node_idx in conflicts {
+			self.remove_node_color(node_idx);
+		}
+
+		for node in &mut self.nodes {
+			node.update();
+		}
 	}
-	
-	return converged;
+
+	pub fn iterate(&mut self) -> bool {
+		let mut converged = true;
+		let mut to_update: Vec<usize> = Vec::new();
+
+		for node_idx in 0..self.nodes.len() {
+			if self.update_node_color(node_idx, &mut to_update) {
+				converged = false;
+			}
+		}
+
+		for idx in to_update {
+			let node = &mut self.nodes[idx];
+			node.update();
+		}
+		
+		return converged;
+	}
+
+	pub fn new_node_color(&mut self, node: usize, color: usize) {
+		let node = &mut self.nodes[node];
+		node.new_color(color);
+
+		for neighbor_idx in &node.neighbors.clone() {
+			let mut neighbor = &mut self.nodes[*neighbor_idx];
+			neighbor.new_neighbor_count[color] += 1.0;
+			neighbor.new_colored_neighbors += 1;
+		}
+	}
+
+	pub fn remove_node_color(&mut self, node: usize) {
+		let node = &mut self.nodes[node];
+		let node_color = node.color;
+		if let Some(color) = node_color {
+			node.remove_color();
+			for neighbor_idx in &node.neighbors.clone() {
+				let mut neighbor = &mut self.nodes[*neighbor_idx];
+				neighbor.new_neighbor_count[color] -= 1.0;
+				neighbor.new_colored_neighbors -= 1;
+			}
+
+		}
+	}
+
+	pub fn update_node_color(&mut self, node_idx: usize, to_update: &mut Vec<usize>) -> bool {
+		let node = &self.nodes[node_idx];
+		let node_color = node.color;
+		let mut new_color = None;
+		let mut max_count= 0.0;
+		for (color, count) in node.neighbor_count.iter().enumerate() {
+			if *count > max_count {
+				new_color = Some(color);
+				max_count = *count;
+			}
+		}
+		
+		if let Some(new_color) = new_color {
+			if let Some(curr_color) = node.color {
+				if node.neighbor_count[curr_color] + 1.5 > max_count {
+					return false;
+				}
+			}
+			
+			if max_count > node.colored_neighbors as f64 / 2.0 {
+					to_update.push(node.idx);
+					for neighbor_idx in &node.neighbors.clone() {
+						let mut neighbor = &mut self.nodes[*neighbor_idx];
+						to_update.push(neighbor.idx);
+						neighbor.new_neighbor_count[new_color] += 1.0;
+						if let Some(curr_color) = node_color {
+							neighbor.new_neighbor_count[curr_color] -= 1.0;
+						} else {
+							neighbor.new_colored_neighbors += 1;
+						}
+					}
+					{
+						let node = &mut self.nodes[node_idx];
+						node.color = Some(new_color);
+					}
+					return true;
+			}
+		}
+		false
+	}
 }
+	

@@ -1,10 +1,8 @@
-use std::{collections::HashMap, io::{Error, Read}, fs::File};
+use std::{collections::HashMap, io::{Read}, fs::File};
 use serde_json::{Result};
-use petgraph::prelude::*;
-use super::graphs::CentralityGraph;
 
-pub fn adj_list_from_file(fileName: &String) -> Result<HashMap<String, Vec<String>>> {
-	let mut file = File::open(fileName).unwrap();
+pub fn adj_list_from_file(file_name: &String) -> Result<HashMap<String, Vec<String>>> {
+	let mut file = File::open(file_name).unwrap();
 	let mut contents = String::new();
 	file.read_to_string(&mut contents);
 	// parse json into adj_list
