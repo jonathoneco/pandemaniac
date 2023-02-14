@@ -159,7 +159,7 @@ def super_secret_strategy(G, n_seeds):
 
     progress_bar = tqdm(total=3.5*60)
 
-    while (datetime.now() - curr_time).total_seconds() < 6:
+    while (datetime.now() - curr_time).total_seconds() < 3.5*60:
         tqdm.update(progress_bar, (datetime.now() - curr_time).total_seconds())
         seed = frozenset(np.random.choice(G.nodes(), n_seeds, replace=False))
         
@@ -185,7 +185,9 @@ def super_secret_strategy(G, n_seeds):
             beats[strats[idx]] += 1
 
     sorted_beats = sorted(beats.items(), key=lambda item: item[1], reverse=True)
-    seeding = sorted_beats[0][0]
+    if len(sorted_beats) == 0:
+        return [frozenset(deg_nodes)]
+    seeding = [sorted_beats[0][0]]
     return seeding
 
     
