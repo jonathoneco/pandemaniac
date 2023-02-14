@@ -76,7 +76,7 @@ impl Sim {
 	pub fn run(&mut self, seeds: &HashMap<String, Vec<usize>>) -> HashMap<String, f64>  {
 		let indexed_seeds:Vec<(usize, &Vec<usize>)> = seeds.keys().enumerate().map(|(idx, color)| (idx, &seeds[color])).collect();
 		let num_colors = indexed_seeds.len();
-		
+		self.colors = vec![0; num_colors];
 		self.reset_nodes(num_colors);
 		self.seed_nodes(&indexed_seeds);
 		let max_rounds:usize = rand::thread_rng().gen_range(100..=200);
@@ -84,13 +84,12 @@ impl Sim {
 		let mut converged = false;
 
 		let mut avg_growth = vec![0.0; num_colors];
-		self.colors = vec![0; num_colors];
 		while self.iter < max_rounds && !converged {
 			let prev_colors = self.colors.clone();
 			converged = self.iterate();
 			self.iter += 1;
 			for i in 0..num_colors {
-				avg_growth[i] += (self.colors[i] - prev_colors[i]) as f64;
+				avg_growth[i] += (self.colors[i] as f64 - prev_colors[i] as f64) as f64;
 			}
 		}
 		for i in 0..num_colors {
@@ -174,6 +173,7 @@ impl Sim {
 	pub fn new_node_color(&mut self, node: usize, color: usize) {
 		let node = &mut self.nodes[node];
 		node.new_color(color);
+		self.colors[color] += 1;
 
 		for neighbor_idx in &node.neighbors.clone() {
 			let mut neighbor = &mut self.nodes[*neighbor_idx];
@@ -186,6 +186,7 @@ impl Sim {
 		let node = &mut self.nodes[node];
 		let node_color = node.color;
 		if let Some(color) = node_color {
+			self.colors[color] -= 1;
 			node.remove_color();
 			for neighbor_idx in &node.neighbors.clone() {
 				let mut neighbor = &mut self.nodes[*neighbor_idx];
