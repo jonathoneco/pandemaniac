@@ -2,16 +2,22 @@ from utils import *
 import optimized_sim
 from strategies import *
 import concurrent.futures
+import argparse
+
 
 def main():
     # Setup Graph
-    file_name = "sample_graphs/J.5.1.json"
-    G = get_graph_from_file("sample_graphs/J.5.1.json")
+    parser = argparse.ArgumentParser(description='A simple example of argparse')
+    parser.add_argument('--filename', type=str, help='Input file name')
+    args = parser.parse_args()
+    file_name = args.filename
+    # file_name = "competition_graphs/RR.5.10.json"
+    G = get_graph_from_file(file_name)
     adj_list = nx.to_dict_of_lists(G)
     splitname = file_name.split('.')
     num_seeds = int(splitname[1])
     if splitname[0][-1] == "J":
-        n_colors = 3
+        n_colors = 4
     else:
         n_colors = 2
     
@@ -20,10 +26,10 @@ def main():
 
     # Run each strategy on graph, returning the top seedings.
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        future1 = executor.submit(genetic_strat, G, num_seeds, n_colors)
+        # future1 = executor.submit(genetic_strat, G, num_seeds, n_colors)
         future2 = executor.submit(centrality_strat, G, num_seeds, n_colors)
-        future3 = executor.submit(clustered_centrality_strat, G, num_seeds, n_colors)
-        results = [future.result() for future in [future1, future2, future3]]
+        # future3 = executor.submit(clustered_centrality_strat, G, num_seeds, n_colors)
+        results = [future.result() for future in [future2]]
     seedings = []
     for strategy_result in results:
         seedings.extend(strategy_result)

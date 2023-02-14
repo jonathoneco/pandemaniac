@@ -15,7 +15,7 @@ def centrality_strat(G, n_seeds, n_colors=2, n_partitions=100):
   seed_combos = []
 
   # Generate potential strategies (seed nodes).
-  # print('Generating potential seed combinations...')
+  print('Generating potential seed combinations... centralities')
   for alpha in tqdm(np.linspace(0, 1, n_partitions)):
     for beta in np.linspace(0, 1 - alpha, n_partitions):
       weights = [alpha, beta, 1 - alpha - beta]
@@ -26,7 +26,7 @@ def centrality_strat(G, n_seeds, n_colors=2, n_partitions=100):
 
   # Maps a set of seed nodes to sets of seed nodes that it beats.
   beats = {seed : 0 for seed in seed_combos}
-
+  print("pitting centralities together centralities")
   subsets = itertools.combinations(seed_combos, n_colors)
   for subset in tqdm(subsets):
     entry = {i : subset[i] for i in range(len(subset))}
@@ -34,6 +34,7 @@ def centrality_strat(G, n_seeds, n_colors=2, n_partitions=100):
     winner = sorted(res.keys(), key=lambda x : res[x], reverse=True)[0]
 
     beats[seed_combos[winner]] += n_colors - 1
+  print("finished pitting centralities")
 
   return sorted(beats.keys(), key=lambda x : beats[x], reverse=True)[:20]
 
@@ -63,7 +64,7 @@ def clustered_centrality_strat(G, n_seeds, n_colors=2, n_partitions=100):
     seed_combos = []
 
 	# Generate potential strategies (seed nodes).
-	# print('Generating potential seed combinations...')
+    print('Generating potential seed combinations... clustered')
     for alpha in tqdm(np.linspace(0, 1, n_partitions)):
         for beta in np.linspace(0, 1 - alpha, n_partitions):
             weights = [alpha, beta, 1 - alpha - beta]
@@ -76,6 +77,7 @@ def clustered_centrality_strat(G, n_seeds, n_colors=2, n_partitions=100):
     seeds = {i : seed_combos[i] for i in range(len(seed_combos))}
     beats = {seed : [] for seed in seed_combos}
 
+    print("pitting against eachother clustered")
     subsets = itertools.combinations(seed_combos, n_colors)
     for subset in tqdm(subsets):
         entry = {i : subset[i] for i in range(len(subset))}
@@ -85,16 +87,19 @@ def clustered_centrality_strat(G, n_seeds, n_colors=2, n_partitions=100):
         for i in range(len(subset)):
             if i != winner:
                 beats[entry[winner]].append([entry[i]])
-
+    print("finished pitting seeds clustered")
     return sorted(beats.keys(), key=lambda x : len(beats[x]), reverse=True)[:20]
 
-def genetic_strat(G, n_seeds, n_colors=2, n_generations=5, pop_size=30, n_parents=2, mutations_div = 3):
+def genetic_strat(G, n_seeds, n_colors=2, n_generations=5, pop_size=30, n_parents=4, mutations_div = 3):
     old_parents = np.empty(1)
     num_same = 0
+    print("gen first pop")
     population = [np.random.choice(list(G.nodes), n_seeds, replace=False) for _ in range(pop_size)]
     nodes = optimized_sim.create_nodes(nx.to_dict_of_lists(G))
     n_mutations = int(n_seeds / mutations_div)
+    print("doing generations")
     for i in tqdm(range(n_generations)):
+        print("generatioN!")
         fitness = calc_pop_fitness(population, nodes, n_colors)
         parents = select_mating_pool(population, fitness, n_parents, n_seeds=n_seeds)
         old_parents = parents
@@ -107,6 +112,7 @@ def genetic_strat(G, n_seeds, n_colors=2, n_generations=5, pop_size=30, n_parent
     best_fitness = np.flip(np.argsort(fitness))
     population = np.array(population)
     winning_strategies = population[best_fitness[:20]]
+    print("finished generations")
     # for i in range(len(winning_strategies)):
     #    winning_strategies[i] = frozenset(winning_strategies[i])
     return winning_strategies
