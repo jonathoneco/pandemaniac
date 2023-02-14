@@ -1,5 +1,7 @@
+use core::num;
 use std::collections::HashMap;
 use rand::prelude::*;
+use rayon::vec;
 
 pub struct Node {
 	pub idx: usize,
@@ -57,6 +59,8 @@ impl Node {
 
 pub struct Sim {
 	pub nodes: Vec<Node>,
+	iter: usize,
+	colors: Vec<usize>,
 }
 
 impl Sim {
@@ -64,6 +68,8 @@ impl Sim {
 		let nodes = Self::create_nodes(adj_list);
 		Sim {
 			nodes,
+			iter: 0,
+			colors: vec![]
 		}
 	}
 	
@@ -73,15 +79,24 @@ impl Sim {
 		
 		self.reset_nodes(num_colors);
 		self.seed_nodes(&indexed_seeds);
-		let max_rounds:isize = rand::thread_rng().gen_range(100..=200);
-		let mut iter = 0;
+		let max_rounds:usize = rand::thread_rng().gen_range(100..=200);
+		self.iter = 0;
 		let mut converged = false;
 
-		while iter < max_rounds && !converged {
+		let mut avg_growth = vec![0.0; num_colors];
+		self.colors = vec![0; num_colors];
+		while self.iter < max_rounds && !converged {
+			let prev_colors = self.colors.clone();
 			converged = self.iterate();
-			iter += 1;
+			self.iter += 1;
+			for i in 0..num_colors {
+				avg_growth[i] += (self.colors[i] - prev_colors[i]) as f64;
+			}
 		}
-		println!("Converged in {} iterations.", iter);
+		for i in 0..num_colors {
+			avg_growth[i] /= self.iter as f64;
+		}
+		println!("Converged in {} iterations.", self.iter);
 
 		let mut total_counts = vec![0.0; num_colors];
 		for node in &self.nodes {
@@ -90,7 +105,7 @@ impl Sim {
 			}
 		}
 
-		return seeds.keys().enumerate().map(|(idx, color)| (color.clone(), total_counts[idx])).collect();
+		return seeds.keys().enumerate().map(|(idx, color)| (color.clone(), avg_growth[idx])).collect();
 	}
 
 	pub fn create_nodes(adj_list: &HashMap<String, Vec<String>>) -> Vec<Node> {
@@ -213,6 +228,10 @@ impl Sim {
 						}
 					}
 					{
+						if let Some(curr_color) = node_color {
+							self.colors[curr_color] -= 1;
+						}
+						self.colors[new_color] += 1;
 						let node = &mut self.nodes[node_idx];
 						node.color = Some(new_color);
 					}
