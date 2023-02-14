@@ -143,8 +143,7 @@ def output_seeds(seeds, filename, n=50):
     f = open(f'{filename}_seeds.txt', 'w')
 
     for i in range(n):
-        for seed in seeds[i % len(seeds)]:
-            for node in seed:
-                f.write(f'{node}\n')
+        for node in seeds[i % len(seeds)]:
+            f.write(f'{node}\n')
 
     f.close()

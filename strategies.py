@@ -7,6 +7,8 @@ from tqdm import tqdm
 import itertools
 import sklearn.cluster as cluster
 from collections import Counter
+from datetime import datetime
+from networkx.algorithms.community import label_propagation_communities as lpc
 
 def centrality_strat(G, n_seeds, n_colors=2, n_partitions=100):
   adj_list = nx.to_dict_of_lists(G)
@@ -116,3 +118,77 @@ def genetic_strat(G, n_seeds, n_colors=2, n_generations=5, pop_size=30, n_parent
     # for i in range(len(winning_strategies)):
     #    winning_strategies[i] = frozenset(winning_strategies[i])
     return winning_strategies
+
+def label_prop_jungle_strat(G, n_seeds):
+  communities = lpc(G)
+  communities_list = [list(community) for community in communities]
+
+  close_community = None
+  close_community_diff = 9999999
+  for community in communities_list:
+      if np.abs(len(community) - n_seeds) < close_community_diff:
+          close_community = community
+          close_community_diff = np.abs(len(community) - n_seeds)
+
+
+  seeds = []
+  degrees = G.degree(close_community)
+  if len(close_community) >= n_seeds:
+      seeds = sorted(key for (key, value) in dict(degrees).items() if value > 0)[:n_seeds]
+  else:
+      seeds.extend(list(dict(degrees).keys()))
+      diff = len(seeds) - n_seeds
+      smallnonzero = sorted(key for (key, value) in dict(G.degree()).items() if value > 0)
+      i = 0
+      while len(seeds) != n_seeds:
+          if smallnonzero[i] not in seeds:
+              seeds.append(smallnonzero[i])
+          i += 1
+  return [frozenset(seeds)]
+
+def super_secret_strategy(G, n_seeds):
+    curr_time = datetime.now()
+
+    c_deg = dict(G.degree())
+    nodes = optimized_sim.create_nodes(nx.to_dict_of_lists(G))
+    deg_nodes = sorted(c_deg.keys(), key=lambda x : c_deg[x], reverse=True)[:n_seeds]
+    #   print(f'Degree nodes: {deg_nodes}')
+
+    wins = {}
+    previously_tried = set()
+
+    progress_bar = tqdm(total=3.5*60)
+
+    while (datetime.now() - curr_time).total_seconds() < 6:
+        tqdm.update(progress_bar, (datetime.now() - curr_time).total_seconds())
+        seed = frozenset(np.random.choice(G.nodes(), n_seeds, replace=False))
+        
+        if seed not in previously_tried:
+            rand, deg = score_seeds_opt(seed, deg_nodes, nodes)
+            previously_tried.add(seed)
+        if rand > deg:
+            wins[seed] = rand
+            print(f'{seed} beat degrees')
+    #   print(wins)
+    rand_seeds = list(wins.keys())
+    beats = {seeds : 0 for seeds in rand_seeds}
+    
+    seeds_to_idx = {rand_seeds[i] : i for i in range(len(rand_seeds))}
+
+    combinations = itertools.combinations(rand_seeds, 2)
+    print("Pitting final seeds against eachother")
+    for strats in combinations:
+        comp_seeds = {seeds_to_idx[strat] : strat for strat in strats}
+        scores = list(optimized_sim.sim(nodes, comp_seeds))
+        scores = np.flip(np.argsort(scores))
+        for idx in scores:
+            beats[strats[idx]] += 1
+
+    sorted_beats = sorted(beats.items(), key=lambda item: item[1], reverse=True)
+    seeding = sorted_beats[0][0]
+    return seeding
+
+    
+
+
+            
