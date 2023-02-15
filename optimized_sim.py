@@ -1,5 +1,6 @@
 from random import randint, seed
 import numpy as np
+import collections
 
 ################################
 ### NODE CLASS AND FUNCTIONS ###
@@ -168,3 +169,42 @@ def iterate(nodes):
     node.complete_iteration()
 
   return converged
+
+
+
+def sim_1v1(A, seed1, seed2):
+    """
+    Simulate a 2-color game on a given graph.
+
+    Keyword arguments:
+    A     -- modified (diagonals are 1.5) adjacency matrix form of the graph in column-major order.
+    seed1 -- frozenset of indices representing color 1 seed nodes.
+    seed2 -- frozenset of indices representing color 2 seed nodes.
+    
+    Returns:
+    count1, count2 -- number of nodes for each color after convergence (or max iterations reached)
+    """
+
+    if seed1 == seed2:
+        return 0.0, 0.0
+
+    # Construct initial seeding for each color.
+    n = A.shape[0]
+    curr = np.zeros(n).reshape((-1,1))
+    curr[list(seed1)] += 1
+    curr[list(seed2)] -= 1
+
+    # Simulate until convergence or max iterations reached
+    max_iter = max_rounds = randint(100, 200)
+    iter = 0
+    prev = None
+
+    while (prev != curr).any() and iter < max_iter:
+        prev = curr
+        curr = np.sign(A @ prev)
+        iter += 1
+
+    curr = np.array(curr).flatten()
+    counts = collections.Counter(curr)
+    return counts[1], counts[-1]
+

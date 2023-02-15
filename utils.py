@@ -19,6 +19,26 @@ def get_graph_from_file(filename):
         G.add_edges_from([(u, neighbor) for neighbor in neighbors])
     return G
 
+def construct_graph(filename):
+    with open(filename, 'r') as graphjson:
+        adj_list = json.load(graphjson)
+
+    G = nx.Graph()
+    idx_to_label = {}
+    label_to_idx = {}
+
+    # Populate map and add nodes to graph
+    for (idx, u) in enumerate(adj_list.keys()):
+        idx_to_label[idx] = u
+        label_to_idx[u] = idx
+        G.add_node(idx)
+
+
+    for u, neighbors in adj_list.items():
+        G.add_edges_from([(label_to_idx[u], label_to_idx[v]) for v in neighbors])
+
+    return G, idx_to_label
+
 
 def get_centralities(graph):
     return [nx.degree_centrality(graph), nx.betweenness_centrality(graph), nx.closeness_centrality(graph)]
