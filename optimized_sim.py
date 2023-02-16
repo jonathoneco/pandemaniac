@@ -1,6 +1,7 @@
 from random import randint, seed
 import numpy as np
 import collections
+# import torch
 
 ################################
 ### NODE CLASS AND FUNCTIONS ###
@@ -208,3 +209,23 @@ def sim_1v1(A, seed1, seed2):
     counts = collections.Counter(curr)
     return counts[1], counts[-1]
 
+# def sim1v1gpu(A, seed1, seed2):
+#     if torch.equal(seed1, seed2):
+#       return 0.0, 0.0
+#     n = A.shape[0]
+#     curr = torch.zeros(n)
+#     curr[seed1] += 1
+#     curr[seed2] -= 1
+
+#     max_iter = max_rounds = randint(100, 200)
+#     iter = 0
+#     prev = torch.tensor(0.0)
+
+#     while (not torch.equal(prev, curr)) and iter < max_iter:
+#         prev = curr
+#         curr = torch.sign(torch.matmul(A, prev))
+#         iter += 1
+
+#     curr = curr.flatten()
+#     counts = collections.Counter(curr)
+#     return counts[1], counts[-1]
