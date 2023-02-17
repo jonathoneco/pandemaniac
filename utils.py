@@ -33,7 +33,6 @@ def construct_graph(filename):
         label_to_idx[u] = idx
         G.add_node(idx)
 
-
     for u, neighbors in adj_list.items():
         G.add_edges_from([(label_to_idx[u], label_to_idx[v]) for v in neighbors])
 

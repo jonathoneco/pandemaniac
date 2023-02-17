@@ -119,32 +119,34 @@ def genetic_strat(G, n_seeds, n_colors=2, n_generations=5, pop_size=30, n_parent
     #    winning_strategies[i] = frozenset(winning_strategies[i])
     return winning_strategies
 
-def label_prop_jungle_strat(G, n_seeds):
-  communities = lpc(G)
-  communities_list = [list(community) for community in communities]
+def label_prop_jungle_strat(file_name, n_seeds):
+    G = get_graph_from_file(file_name)
+    communities = lpc(G)
+    communities_list = [list(community) for community in communities]
 
-  close_community = None
-  close_community_diff = 9999999
-  for community in communities_list:
-      if np.abs(len(community) - n_seeds) < close_community_diff:
-          close_community = community
-          close_community_diff = np.abs(len(community) - n_seeds)
+    close_community = None
+    close_community_diff = 9999999
+    for community in communities_list:
+        if np.abs(len(community) - n_seeds) < close_community_diff:
+            close_community = community
+            close_community_diff = np.abs(len(community) - n_seeds)
 
 
-  seeds = []
-  degrees = G.degree(close_community)
-  if len(close_community) >= n_seeds:
-      seeds = sorted(key for (key, value) in dict(degrees).items() if value > 0)[:n_seeds]
-  else:
-      seeds.extend(list(dict(degrees).keys()))
-      diff = len(seeds) - n_seeds
-      smallnonzero = sorted(key for (key, value) in dict(G.degree()).items() if value > 0)
-      i = 0
-      while len(seeds) != n_seeds:
-          if smallnonzero[i] not in seeds:
-              seeds.append(smallnonzero[i])
-          i += 1
-  return [frozenset(seeds)]
+    seeds = []
+    degrees = G.degree(close_community)
+    seeds = []
+    if len(close_community) >= n_seeds:
+        for _ in range(50):
+            seeds.append(np.random.choice(close_community, n_seeds, replace=False))
+    else:
+        diff = len(seeds) - n_seeds
+        for _ in range(50):
+            seed = []
+            seed.extend(list(dict(degrees).keys()))
+            seed.extend(np.random.choice((key for (key, value) in dict(G.degree()).items() if value > 0), diff, replace=False))
+            seeds.append(seed)
+        
+    return seeds
 
 def super_secret_strategy(G, n_seeds):
     curr_time = datetime.now()
