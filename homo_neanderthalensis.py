@@ -53,7 +53,10 @@ def monkey_rr(file_name, num_seeds, num_threads):
         try:
             while (datetime.now() - start_time).total_seconds() < 240:
                 # Launch threads permuting nodes for the current set of seed nodes.
-                _, curr_seeds = Q.get()
+                if Q.empty():
+                    curr_seeds = frozenset(np.random.choice(list(G.nodes), num_seeds, replace=False))
+                else:
+                    _, curr_seeds = Q.get()
                 print(f'Now testing: {curr_seeds}')
 
                 treats = [monkey.submit(
