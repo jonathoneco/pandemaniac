@@ -48,6 +48,7 @@ def monkey_rr(file_name, num_seeds, num_threads):
     currs = set()
     #curr_seeds = seeds_deg
     start_time = datetime.now()
+    prog = tqdm()
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as monkey:
         try:
@@ -80,7 +81,7 @@ def monkey_rr(file_name, num_seeds, num_threads):
                         if best not in currs:
                             Q.put((-1 * scores[best], best))
                             currs.add(best)
-
+                prog.update(1)
 
         except KeyboardInterrupt:
             # Gracefully shut down the thread pool.

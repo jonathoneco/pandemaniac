@@ -96,7 +96,7 @@ def monkey_rr(file_name, num_seeds, num_threads):
     return [frozenset(winner_labels)]
 
 
-def banana_1(A, num_seeds, meta_seeds, sample_nodes, mins=3):
+def banana_1(A, num_seeds, meta_seeds, sample_nodes, mins=4.25):
     start_time = datetime.now()
     winners = {}
     i = 0
@@ -118,7 +118,7 @@ def banana_1(A, num_seeds, meta_seeds, sample_nodes, mins=3):
     
     return winners, i
 
-def banana(A, n_seeds, meta_seeds, sample_nodes, sample_probs, n_sleepers, mins=3):
+def banana(A, n_seeds, meta_seeds, sample_nodes, sample_probs, n_sleepers, mins=4.25):
     start_time = datetime.now()
     tested = set()
     winners = {}

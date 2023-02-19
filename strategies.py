@@ -127,7 +127,7 @@ def label_prop_jungle_strat(file_name, n_seeds):
     close_community = None
     close_community_diff = 9999999
     for community in communities_list:
-        if np.abs(len(community) - n_seeds) < close_community_diff:
+        if (np.abs(len(community) - n_seeds) < close_community_diff) and (len(community) >= n_seeds):
             close_community = community
             close_community_diff = np.abs(len(community) - n_seeds)
 
@@ -135,16 +135,21 @@ def label_prop_jungle_strat(file_name, n_seeds):
     seeds = []
     degrees = G.degree(close_community)
     seeds = []
-    if len(close_community) >= n_seeds:
-        for _ in range(50):
-            seeds.append(np.random.choice(close_community, n_seeds, replace=False))
-    else:
-        diff = len(seeds) - n_seeds
-        for _ in range(50):
-            seed = []
-            seed.extend(list(dict(degrees).keys()))
-            seed.extend(np.random.choice((key for (key, value) in dict(G.degree()).items() if value > 0), diff, replace=False))
-            seeds.append(seed)
+    # if len(close_community) >= n_seeds:
+    for _ in range(50):
+        sortedseeds = sorted([(key, value) for (key, value) in dict(G.degree()).items() if value > 0], key=lambda x: x[1])
+        seed = []
+        for i in range(n_seeds):
+            seed.append(sortedseeds[i][0])
+        # seeds.append(sortedseeds[:n_seeds])
+        seeds.append(seed)
+    # else:
+    #     diff = len(seeds) - n_seeds
+    #     for _ in range(50):
+    #         seed = []
+    #         seed.extend(list(dict(degrees).keys()))
+    #         seed.extend(np.random.choice((key for (key, value) in dict(G.degree()).items() if value > 0), diff, replace=False))
+    #         seeds.append(seed)
         
     return seeds
 
