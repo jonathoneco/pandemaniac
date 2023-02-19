@@ -54,8 +54,6 @@ def monkey_rr(file_name, num_seeds, num_threads):
             while (datetime.now() - start_time).total_seconds() < 240:
                 # Launch threads permuting nodes for the current set of seed nodes.
                 _, curr_seeds = Q.get()
-                while curr_seeds in currs:
-                    _, curr_seeds = Q.get()
                 currs.add(curr_seeds)
                 print(f'Now testing: {curr_seeds}')
 
@@ -77,7 +75,9 @@ def monkey_rr(file_name, num_seeds, num_threads):
 
                     if len(scores) > 0:
                         for (seed, score) in scores.items():
-                            Q.put((-1 * score, seed))
+                            if seed not in currs:
+                                Q.put((-1 * score, seed))
+                                currs.add(seed)
 
 
         except KeyboardInterrupt:
