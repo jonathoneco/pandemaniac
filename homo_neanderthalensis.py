@@ -75,12 +75,11 @@ def monkey_rr(file_name, num_seeds, num_threads):
                 for (scores, tests) in peels:
                     tested = tested.union(tests)
                     winners.update(scores)
-
-                    if len(scores) > 0:
-                        best = max(scores, key=scores.get)
-                        if best not in currs:
-                            Q.put((-1 * scores[best], best))
-                            currs.add(best)
+                    
+                    for seed in scores.keys():
+                        if seed not in currs:
+                            Q.put((-1 * scores[seed], seed))
+                            currs.add(seed)
                 prog.update(1)
 
         except KeyboardInterrupt:
