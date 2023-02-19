@@ -76,8 +76,8 @@ def monkey_rr(file_name, num_seeds, num_threads):
                     winners.update(scores)
 
                     if len(scores) > 0:
-                        best = max(scores, key=scores.get)
-                        Q.put((-1 * scores[best], best))
+                        for (seed, score) in scores.items():
+                            Q.put((-1 * score, seed))
 
 
         except KeyboardInterrupt:
