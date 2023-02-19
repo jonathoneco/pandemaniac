@@ -39,7 +39,7 @@ def monkey_rr(file_name, num_seeds, num_threads):
     degrees = dict(nx.degree(G))
     sorted_deg = sorted(degrees.keys(), key=lambda x : degrees[x], reverse=True)
     seeds_deg = frozenset(sorted_deg[:num_seeds])
-    sample_nodes = frozenset(sorted_deg[num_seeds:(G.order() // 2)])
+    sample_nodes = frozenset(sorted_deg[:(G.order() // 2)])
 
     winners = {}
     tested = set()
@@ -72,11 +72,10 @@ def monkey_rr(file_name, num_seeds, num_threads):
                     tested = tested.union(tests)
                     winners.update(scores)
 
-                    if len(scores) > 0:
-                        for (seed, score) in scores.items():
-                            if seed not in currs:
-                                Q.put((-1 * score, seed))
-                                currs.add(seed)
+                    for (seed, score) in scores.items():
+                        if seed not in currs:
+                            Q.put((-1 * score, seed))
+                            currs.add(seed)
 
 
         except KeyboardInterrupt:
